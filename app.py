@@ -75,7 +75,7 @@ def open_image_dialog():
     filetypes = [
         ("All files", "*.*"),
         ("Image files", "*.png *.jpg *.jpeg *.bmp *.gif *.webp"),
-        
+
     ]
     path = filedialog.askopenfilename(title="Select an image", filetypes=filetypes)
     if root is not None:
@@ -146,10 +146,25 @@ def main():
         label="Clear All Dots",
     )
 
+    # Channel gate toggles (right menu)
+    red_gate_btn = Button(
+        rect=pygame.Rect(VIEWPORT_WIDTH + 40, 320, MENU_WIDTH - 80, 40),
+        label="RED",
+    )
+    green_gate_btn = Button(
+        rect=pygame.Rect(VIEWPORT_WIDTH + 40, 366, MENU_WIDTH - 80, 40),
+        label="GREEN",
+    )
+    blue_gate_btn = Button(
+        rect=pygame.Rect(VIEWPORT_WIDTH + 40, 412, MENU_WIDTH - 80, 40),
+        label="BLUE",
+    )
+
     # Image state
     image = None
     image_rect = None
     image_path = None
+    channel_gated_image = None
 
     # Transform state
     offset_x = 0.0
@@ -158,6 +173,9 @@ def main():
 
     # Dots stored in image coordinates (x, y)
     dots = []
+
+    # Channel gate state
+    active_channel_gate = None  # None | "R" | "G" | "B"
 
     # History for undo/redo
     # action tuple formats:
@@ -182,6 +200,53 @@ def main():
     def reset_history():
         undo_stack.clear()
         redo_stack.clear()
+
+    def apply_channel_gate(source_image, gate):
+        if source_image is None or gate is None:
+            return source_image
+
+        gated = source_image.copy().convert_alpha()
+        w, h = gated.get_size()
+
+        if gate == "R":
+            for y in range(h):
+                for x in range(w):
+                    r, g, b, a = gated.get_at((x, y))
+                    if not (r > g and r > b):
+                        gated.set_at((x, y), (0, 0, 0, 0))
+
+        elif gate == "G":
+            for y in range(h):
+                for x in range(w):
+                    r, g, b, a = gated.get_at((x, y))
+                    if not (g > r and g > b):
+                        gated.set_at((x, y), (0, 0, 0, 0))
+
+        elif gate == "B":
+            for y in range(h):
+                for x in range(w):
+                    r, g, b, a = gated.get_at((x, y))
+                    if not (b > r and b > g):
+                        gated.set_at((x, y), (0, 0, 0, 0))
+
+        return gated
+
+    def refresh_channel_gated_image():
+        nonlocal channel_gated_image
+        if image is None or active_channel_gate is None:
+            channel_gated_image = image
+        else:
+            channel_gated_image = apply_channel_gate(image, active_channel_gate)
+
+    def toggle_channel_gate(gate):
+        nonlocal active_channel_gate, status_message
+        if active_channel_gate == gate:
+            active_channel_gate = None
+            status_message = "Channel gate: OFF"
+        else:
+            active_channel_gate = gate
+            status_message = f"Channel gate: {gate}"
+        refresh_channel_gated_image()
 
     def add_dot(ix, iy):
         dots.append((ix, iy))
@@ -339,6 +404,9 @@ def main():
         hovered_save = save_btn.contains(mouse_pos)
         hovered_load = load_btn.contains(mouse_pos)
         hovered_clear = clear_btn.contains(mouse_pos)
+        hovered_red_gate = red_gate_btn.contains(mouse_pos)
+        hovered_green_gate = green_gate_btn.contains(mouse_pos)
+        hovered_blue_gate = blue_gate_btn.contains(mouse_pos)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -391,6 +459,7 @@ def main():
                                     offset_y = 0.0
                                     zoom = 1.0
                                     reset_history()
+                                    refresh_channel_gated_image()
                                     status_message = f"Loaded image: {os.path.basename(selected)}"
                                 except pygame.error:
                                     status_message = "Failed to load image"
@@ -403,6 +472,15 @@ def main():
 
                         elif clear_btn.contains((mx, my)):
                             clear_all_dots()
+
+                        elif red_gate_btn.contains((mx, my)):
+                            toggle_channel_gate("R")
+
+                        elif green_gate_btn.contains((mx, my)):
+                            toggle_channel_gate("G")
+
+                        elif blue_gate_btn.contains((mx, my)):
+                            toggle_channel_gate("B")
                     continue
 
                 # Viewport interactions
@@ -477,10 +555,12 @@ def main():
         screen.set_clip(viewport_rect)
 
         if image is not None:
+            source_for_draw = channel_gated_image if channel_gated_image is not None else image
+
             # Scale image for zoom rendering
             scaled_w = max(1, int(image_rect.width * zoom))
             scaled_h = max(1, int(image_rect.height * zoom))
-            scaled_image = pygame.transform.smoothscale(image, (scaled_w, scaled_h))
+            scaled_image = pygame.transform.smoothscale(source_for_draw, (scaled_w, scaled_h))
             screen.blit(scaled_image, (offset_x, offset_y))
 
             dot_radius = max(2, int(BASE_DOT_RADIUS * max(0.8, min(2.0, zoom))))
@@ -509,18 +589,27 @@ def main():
         load_btn.draw(screen, small_font, hovered_load)
         clear_btn.draw(screen, small_font, hovered_clear)
 
+        red_gate_btn.draw(screen, small_font, hovered_red_gate or active_channel_gate == "R")
+        green_gate_btn.draw(screen, small_font, hovered_green_gate or active_channel_gate == "G")
+        blue_gate_btn.draw(screen, small_font, hovered_blue_gate or active_channel_gate == "B")
+
         dots_text = font.render(f"Dots: {len(dots)}", True, TEXT_COLOR)
-        screen.blit(dots_text, (VIEWPORT_WIDTH + 40, 306))
+        screen.blit(dots_text, (VIEWPORT_WIDTH + 40, 470))
 
         zoom_text = small_font.render(f"Zoom: {zoom:.2f}x", True, MUTED_TEXT)
-        screen.blit(zoom_text, (VIEWPORT_WIDTH + 40, 340))
+        screen.blit(zoom_text, (VIEWPORT_WIDTH + 40, 504))
+
+        gate_label = small_font.render("Channel gate:", True, MUTED_TEXT)
+        gate_value = small_font.render(active_channel_gate if active_channel_gate else "OFF", True, TEXT_COLOR)
+        screen.blit(gate_label, (VIEWPORT_WIDTH + 40, 538))
+        screen.blit(gate_value, (VIEWPORT_WIDTH + 170, 538))
 
         if image_path:
             name = os.path.basename(image_path)
             img_label = small_font.render("Loaded image:", True, MUTED_TEXT)
             img_name = small_font.render(name, True, TEXT_COLOR)
-            screen.blit(img_label, (VIEWPORT_WIDTH + 40, 378))
-            screen.blit(img_name, (VIEWPORT_WIDTH + 40, 402))
+            screen.blit(img_label, (VIEWPORT_WIDTH + 40, 576))
+            screen.blit(img_name, (VIEWPORT_WIDTH + 40, 600))
 
         status_label = small_font.render("Status:", True, MUTED_TEXT)
         status_text = small_font.render(status_message, True, TEXT_COLOR)
