@@ -30,7 +30,7 @@ MUTED_TEXT = (170, 170, 180)
 BUTTON_COLOR = (70, 110, 190)
 BUTTON_HOVER = (90, 130, 220)
 BUTTON_TEXT = (245, 245, 250)
-DOT_COLOR = (255, 255, 255)
+DOT_COLOR = (255, 60, 60)
 
 # Dot sizing in image-space equivalent (adjusted visually through zoom)
 BASE_DOT_RADIUS = 4
@@ -161,7 +161,7 @@ def main():
     undo_stack = []
     redo_stack = []
 
-    # Panning state
+    # Panning state (right click drag)
     panning = False
     pan_last_mouse = (0, 0)
 
@@ -373,8 +373,8 @@ def main():
                 if not in_viewport:
                     continue
 
-                # Start pan with middle mouse OR Shift + left click
-                if event.button == 2 or (event.button == 1 and (pygame.key.get_mods() & pygame.KMOD_SHIFT)):
+                # Start pan with right click drag
+                if event.button == 3:
                     panning = True
                     pan_last_mouse = (mx, my)
                     continue
@@ -382,37 +382,40 @@ def main():
                 if image is None:
                     continue
 
-                # Left click -> add dot in image space if click hits image bounds
+                # Left click -> dot or undot depending on Shift key
                 if event.button == 1:
-                    img_x, img_y = screen_to_image(mx, my)
-                    if 0 <= img_x < image_rect.width and 0 <= img_y < image_rect.height:
-                        add_dot(img_x, img_y)
-                        status_message = f"Dot added ({len(dots)})"
+                    shift_held = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
 
-                # Right click -> remove nearest dot within threshold
-                elif event.button == 3:
-                    if dots:
-                        nearest_idx = None
-                        nearest_dist2 = None
+                    if shift_held:
+                        # Shift + left click -> remove nearest dot within threshold
+                        if dots:
+                            nearest_idx = None
+                            nearest_dist2 = None
 
-                        for i, (dx, dy) in enumerate(dots):
-                            sx, sy = image_to_screen(dx, dy)
-                            dist2 = (sx - mx) ** 2 + (sy - my) ** 2
+                            for i, (dx, dy) in enumerate(dots):
+                                sx, sy = image_to_screen(dx, dy)
+                                dist2 = (sx - mx) ** 2 + (sy - my) ** 2
 
-                            if nearest_dist2 is None or dist2 < nearest_dist2:
-                                nearest_dist2 = dist2
-                                nearest_idx = i
+                                if nearest_dist2 is None or dist2 < nearest_dist2:
+                                    nearest_dist2 = dist2
+                                    nearest_idx = i
 
-                        if (
-                            nearest_idx is not None
-                            and nearest_dist2 is not None
-                            and nearest_dist2 <= DOT_REMOVE_THRESHOLD ** 2
-                        ):
-                            remove_dot_at_index(nearest_idx)
-                            status_message = f"Dot removed ({len(dots)})"
+                            if (
+                                nearest_idx is not None
+                                and nearest_dist2 is not None
+                                and nearest_dist2 <= DOT_REMOVE_THRESHOLD ** 2
+                            ):
+                                remove_dot_at_index(nearest_idx)
+                                status_message = f"Dot removed ({len(dots)})"
+                    else:
+                        # Plain left click -> add dot inside image bounds
+                        img_x, img_y = screen_to_image(mx, my)
+                        if 0 <= img_x < image_rect.width and 0 <= img_y < image_rect.height:
+                            add_dot(img_x, img_y)
+                            status_message = f"Dot added ({len(dots)})"
 
             elif event.type == pygame.MOUSEBUTTONUP:
-                if event.button in (1, 2):
+                if event.button == 3:
                     panning = False
 
             elif event.type == pygame.MOUSEMOTION:
@@ -486,15 +489,17 @@ def main():
         screen.blit(status_label, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 172))
         screen.blit(status_text, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 148))
 
-        help_1 = small_font.render("Pan: middle drag", True, MUTED_TEXT)
-        help_2 = small_font.render("or Shift + left drag", True, MUTED_TEXT)
-        help_3 = small_font.render("Zoom: mouse wheel", True, MUTED_TEXT)
-        help_4 = small_font.render("Undo/Redo: Ctrl+Z / Ctrl+Y", True, MUTED_TEXT)
+        help_1 = small_font.render("Pan: right click + drag", True, MUTED_TEXT)
+        help_2 = small_font.render("Dot: left click", True, MUTED_TEXT)
+        help_3 = small_font.render("Undot: Shift + left click", True, MUTED_TEXT)
+        help_4 = small_font.render("Zoom: mouse wheel", True, MUTED_TEXT)
+        help_5 = small_font.render("Undo/Redo: Ctrl+Z / Ctrl+Y", True, MUTED_TEXT)
 
-        screen.blit(help_1, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 112))
-        screen.blit(help_2, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 90))
-        screen.blit(help_3, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 66))
-        screen.blit(help_4, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 44))
+        screen.blit(help_1, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 132))
+        screen.blit(help_2, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 110))
+        screen.blit(help_3, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 88))
+        screen.blit(help_4, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 66))
+        screen.blit(help_5, (VIEWPORT_WIDTH + 40, WINDOW_HEIGHT - 44))
 
         pygame.display.flip()
         clock.tick(60)
