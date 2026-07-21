@@ -30,7 +30,7 @@ MUTED_TEXT = (170, 170, 180)
 BUTTON_COLOR = (70, 110, 190)
 BUTTON_HOVER = (90, 130, 220)
 BUTTON_TEXT = (245, 245, 250)
-DOT_COLOR = (255, 60, 60)
+DOT_COLOR = (255, 255, 255)
 
 # Dot sizing in image-space equivalent (adjusted visually through zoom)
 BASE_DOT_RADIUS = 4
