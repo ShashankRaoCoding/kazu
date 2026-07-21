@@ -73,8 +73,9 @@ def open_image_dialog():
 
     root = _make_tk_root()
     filetypes = [
-        ("Image files", "*.png *.jpg *.jpeg *.bmp *.gif *.webp"),
         ("All files", "*.*"),
+        ("Image files", "*.png *.jpg *.jpeg *.bmp *.gif *.webp"),
+        
     ]
     path = filedialog.askopenfilename(title="Select an image", filetypes=filetypes)
     if root is not None:
