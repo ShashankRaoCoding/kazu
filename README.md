@@ -12,9 +12,10 @@ A simple Pygame app with a split layout:
 - Zoom with **mouse wheel** (centered around cursor)
 - **Left click** on image to place a dot
 - **Shift + left click** near a dot to remove it ("undot")
+- **Clear All Dots** button removes all dots at once
 - Dots are stored in image coordinates, so they remain attached while panning/zooming
 - Save annotations to JSON and load annotations from JSON
-- Undo/redo for dot add/remove operations
+- Undo/redo for dot add/remove operations (including clear-all)
 - Live dot count in the right menu
 
 ## Requirements
@@ -39,6 +40,7 @@ python app.py
 - **Import Image button** (right panel): opens file picker
 - **Save Dots button**: saves dots to a JSON file
 - **Load Dots button**: loads dots from a JSON file
+- **Clear All Dots button**: removes every dot
 - **Left click in viewport**: add dot
 - **Shift + Left click in viewport near a dot**: remove dot
 - **Pan image**: right mouse button drag

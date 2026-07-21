@@ -140,6 +140,10 @@ def main():
         rect=pygame.Rect(VIEWPORT_WIDTH + 40, 176, MENU_WIDTH - 80, 48),
         label="Load Dots",
     )
+    clear_btn = Button(
+        rect=pygame.Rect(VIEWPORT_WIDTH + 40, 234, MENU_WIDTH - 80, 48),
+        label="Clear All Dots",
+    )
 
     # Image state
     image = None
@@ -158,6 +162,7 @@ def main():
     # action tuple formats:
     # ("add", (x, y))  -> undo removes that exact dot instance
     # ("remove", (x, y), idx) -> undo inserts at idx
+    # ("clear", [dots_before_clear]) -> undo restores all cleared dots
     undo_stack = []
     redo_stack = []
 
@@ -187,6 +192,17 @@ def main():
         undo_stack.append(("remove", pt, idx))
         redo_stack.clear()
 
+    def clear_all_dots():
+        nonlocal status_message
+        if not dots:
+            status_message = "No dots to clear"
+            return
+        old = list(dots)
+        dots.clear()
+        undo_stack.append(("clear", old))
+        redo_stack.clear()
+        status_message = "Cleared all dots"
+
     def undo():
         nonlocal status_message
         if not undo_stack:
@@ -212,6 +228,13 @@ def main():
             dots.insert(idx, pt)
             redo_stack.append(action)
             status_message = "Undo: remove dot"
+
+        elif kind == "clear":
+            old = action[1]
+            dots.clear()
+            dots.extend(old)
+            redo_stack.append(action)
+            status_message = "Undo: clear all"
 
     def redo():
         nonlocal status_message
@@ -240,6 +263,15 @@ def main():
             if removed:
                 undo_stack.append(action)
                 status_message = "Redo: remove dot"
+
+        elif kind == "clear":
+            old = action[1]
+            # Clear again only if current dots match restored state length-wise/content-wise enough
+            # For stack semantics, we apply a fresh clear of current dots.
+            _ = old  # retained for symmetry/history clarity
+            dots.clear()
+            undo_stack.append(action)
+            status_message = "Redo: clear all"
 
     def save_annotations():
         nonlocal status_message
@@ -305,6 +337,7 @@ def main():
         hovered_import = import_btn.contains(mouse_pos)
         hovered_save = save_btn.contains(mouse_pos)
         hovered_load = load_btn.contains(mouse_pos)
+        hovered_clear = clear_btn.contains(mouse_pos)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -366,6 +399,9 @@ def main():
 
                         elif load_btn.contains((mx, my)):
                             load_annotations()
+
+                        elif clear_btn.contains((mx, my)):
+                            clear_all_dots()
                     continue
 
                 # Viewport interactions
@@ -470,19 +506,20 @@ def main():
         import_btn.draw(screen, small_font, hovered_import)
         save_btn.draw(screen, small_font, hovered_save)
         load_btn.draw(screen, small_font, hovered_load)
+        clear_btn.draw(screen, small_font, hovered_clear)
 
         dots_text = font.render(f"Dots: {len(dots)}", True, TEXT_COLOR)
-        screen.blit(dots_text, (VIEWPORT_WIDTH + 40, 248))
+        screen.blit(dots_text, (VIEWPORT_WIDTH + 40, 306))
 
         zoom_text = small_font.render(f"Zoom: {zoom:.2f}x", True, MUTED_TEXT)
-        screen.blit(zoom_text, (VIEWPORT_WIDTH + 40, 282))
+        screen.blit(zoom_text, (VIEWPORT_WIDTH + 40, 340))
 
         if image_path:
             name = os.path.basename(image_path)
             img_label = small_font.render("Loaded image:", True, MUTED_TEXT)
             img_name = small_font.render(name, True, TEXT_COLOR)
-            screen.blit(img_label, (VIEWPORT_WIDTH + 40, 320))
-            screen.blit(img_name, (VIEWPORT_WIDTH + 40, 344))
+            screen.blit(img_label, (VIEWPORT_WIDTH + 40, 378))
+            screen.blit(img_name, (VIEWPORT_WIDTH + 40, 402))
 
         status_label = small_font.render("Status:", True, MUTED_TEXT)
         status_text = small_font.render(status_message, True, TEXT_COLOR)
