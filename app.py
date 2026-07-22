@@ -426,6 +426,7 @@ def main():
                 mx, my = pygame.mouse.get_pos()
                 if mx < VIEWPORT_WIDTH:
                     # Zoom around mouse cursor
+                    ix, iy = screen_to_image(mx, my)
                     old_zoom = zoom
                     if event.y > 0:
                         zoom = clamp(zoom * ZOOM_STEP, MIN_ZOOM, MAX_ZOOM)
@@ -433,7 +434,6 @@ def main():
                         zoom = clamp(zoom / ZOOM_STEP, MIN_ZOOM, MAX_ZOOM)
 
                     if zoom != old_zoom:
-                        ix, iy = screen_to_image(mx, my)
                         offset_x = mx - ix * zoom
                         offset_y = my - iy * zoom
                         status_message = f"Zoom: {zoom:.2f}x"
